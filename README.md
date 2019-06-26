@@ -3,7 +3,9 @@ TaintInduce is a project which aims to automate the creation of taint propagatio
 
 ## References
 One Engine To Serve 'em All: Inferring Taint Rules Without Architectural Semantics
+
 Zheng Leong Chua, Yanhao Wang, Teodora Băluță, Prateek Saxena, Zhenkai Liang, Purui Su. 
+
 In the Network and Distributed System Security Symposium 2019, San Diego, CA, US, Feb 2019. 
 
 ## Disclaimer
