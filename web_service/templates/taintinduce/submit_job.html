@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Submit Job{% endblock %}</h1>
+  {% if g.user %}
+    <a class="action" href="{{ url_for('taintinduce.submit_job') }}">New Job</a>
+    <a class="action" href="{{ url_for('taintinduce.view_jobs') }}">View Jobs</a>
+    <a class="action" href="{{ url_for('taintinduce.index') }}">View Rules</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+    <form method="post">
+      <label for="bytestring">Instruction Bytestring</label>
+      <input name="bytestring" id="bytestring" required>
+      <label for="archstring">Architecture String</label>
+      <select name="archstring">
+	      <option value="X86">X86</option>
+	      <option value="AMD64">AMD64</option>
+	      <option value="ARM32">ARM32</option>
+	      <option value="ARM64">ARM64</option>
+      </select>
+      <br>
+      <label for="state_string">State String (Optional)</label>
+      <input name="state_string" id="state_string">
+    <input type="submit" value="Submit">
+    </form>
+{% endblock %}
