@@ -1,6 +1,15 @@
 # taintinduce
 TaintInduce is a project which aims to automate the creation of taint propagation rules for unknown instruction sets.
 
+## References
+One Engine To Serve 'em All: Inferring Taint Rules Without Architectural Semantics
+Zheng Leong Chua, Yanhao Wang, Teodora Băluță, Prateek Saxena, Zhenkai Liang, Purui Su. 
+In the Network and Distributed System Security Symposium 2019, San Diego, CA, US, Feb 2019. 
+
+## Disclaimer
+We are currently in the process of rewriting the prototype to better serve our goal of providing an online taint service for different architectures.
+For people who are interested in the implementation used in the paper, feel free to contact us.
+
 ## Requirements
 ### Python2.7
 - capstone 
@@ -39,3 +48,4 @@ squirrel_flow = FlowDB.get_rule(arch, insn)
 
 ## Format of rules
 @TODO
+
