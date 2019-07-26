@@ -6,6 +6,7 @@ from keystone import *
 
 from isa import ISA
 from x86_registers import *
+import x86_registers
 # x64 architecture
 class AMD64(ISA):
     def __init__(self):
@@ -150,13 +151,10 @@ class AMD64(ISA):
         self.cpu_write_emu_regs = [X86_MEM_WRITE1()]
 
         self.pc_reg        = X86_REG_RIP()
-        self.flag_reg_str  = 'EFLAGS'
         self.flag_reg      = [X86_REG_EFLAGS()]
-        self.state_reg_str = 'FPSW'
         self.state_reg     = [X86_REG_FPSW()]
 
-        # Sub register
-        self.sub_registers = {
+        self.register_map = {
             'RAX'   : ['AL',   'AH',   'AX',   'EAX'],
             'RBX'   : ['BL',   'BH',   'BX',   'EBX'],
             'RCX'   : ['CL',   'CH',   'CX',   'ECX'],
@@ -175,10 +173,22 @@ class AMD64(ISA):
             'R14'   : ['R14D', 'R14W', 'R14B'],
             'R15'   : ['R15D', 'R15W', 'R15B'],
             'RIP'   : ['IP',   'EIP'],
-        }
-
-        # Replace the register with r that can be recognized by Unicorn
-        self.reg_maps = {
+            'YMM0'  : ['XMM0'],
+            'YMM1'  : ['XMM1'],
+            'YMM2'  : ['XMM2'],
+            'YMM3'  : ['XMM3'],
+            'YMM4'  : ['XMM4'],
+            'YMM5'  : ['XMM5'],
+            'YMM6'  : ['XMM6'],
+            'YMM7'  : ['XMM7'],
+            'YMM8'  : ['XMM8'],
+            'YMM9'  : ['XMM9'],
+            'YMM10' : ['XMM10'],
+            'YMM11' : ['XMM11'],
+            'YMM12' : ['XMM12'],
+            'YMM13' : ['XMM13'],
+            'YMM14' : ['XMM14'],
+            'YMM15' : ['XMM15'],
             'FP0': ['ST(0)', 'ST0', 'MM0', 'ST'],
             'FP1': ['ST(1)', 'ST1', 'MM1'],
             'FP2': ['ST(2)', 'ST2', 'MM2'],
@@ -189,13 +199,22 @@ class AMD64(ISA):
             'FP7': ['ST(7)', 'ST7', 'MM7']
         }
 
+        self.register_alias = {}
+        for reg_name in self.register_map:
+            self.register_alias[reg_name] = reg_name
+            for aliased_reg_name in self.register_map[reg_name]:
+                self.register_alias[aliased_reg_name] = reg_name
+
         self.uc_arch = (UC_ARCH_X86, UC_MODE_64)
         self.ks_arch = (KS_ARCH_X86, KS_MODE_64)
         self.cs_arch = (CS_ARCH_X86, CS_MODE_64)
-        self.code_mem = 2 * 1024 * 1024
+        self.code_mem = 4096
         self.code_addr = 0x6d1c00000000000
 
+        self.addr_space = 64
+
         self.cond_reg = X86_REG_EFLAGS()
+        self.reg_module = x86_registers
 
     def name2reg(self, name):
         name = name.upper()
@@ -215,12 +234,8 @@ class AMD64(ISA):
             reg.bits, reg.structure = bits, structure
             return reg
 
-        for full_reg_name, sub_regs_name in self.sub_registers.iteritems():
+        for full_reg_name, sub_regs_name in self.register_map.iteritems():
             if name in sub_regs_name:
                 return eval('X86_REG_{}()'.format(full_reg_name))
-
-        for reg_name, to_replace_reg_name in self.reg_maps.iteritems():
-            if name in to_replace_reg_name:
-                return eval('X86_REG_{}()'.format(reg_name))
 
         return eval('X86_REG_{}()'.format(name))

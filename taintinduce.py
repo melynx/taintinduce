@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from unicorn_cpu.unicorn_cpu import *
+
 import argparse
 import os
 import disassembler.insn_info as insn_info
@@ -7,9 +9,21 @@ import observation_engine.observation as observation_engine
 import inference_engine.inference as inference_engine
 import pickle as pkl
 
+import binascii
 
-def gen_insninfo(archstring, bytestring):
+
+def gen_insninfo(archstring, bytestring, emu_verify=True):
     insn = insn_info.InsnInfo(archstring, bytestring)
+    if emu_verify:
+        cpu = UnicornCPU(archstring)
+        bytecode = binascii.unhexlify(bytestring)
+        mem_regs, jump_reg = cpu.identify_memops_jump(bytecode)
+        if jump_reg and jump_reg not in insn.reg_set:
+            print('{} modifies the control flow but {} not in state_format!'.format(bytestring, jump_reg.name))
+            insn.reg_set.append(jump_reg)
+        for mem_reg in mem_regs:
+            if mem_reg not in insn.reg_set:
+                insn.reg_set.append(mem_reg)
     return insn
 
 def gen_obs(archstring, bytestring, reg_set):

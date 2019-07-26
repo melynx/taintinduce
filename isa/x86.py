@@ -5,6 +5,7 @@ from keystone import *
 
 from isa import ISA
 from x86_registers import *
+import x86_registers
 
 # x86 architecture
 class X86(ISA):
@@ -100,13 +101,11 @@ class X86(ISA):
 
         # XXX teo: do we need these ??
         self.pc_reg        = X86_REG_EIP()
-        self.flag_reg_str  = 'EFLAGS'
         self.flag_reg      = [X86_REG_EFLAGS()]
-        self.state_reg_str = 'FPSW'
         self.state_reg     = [X86_REG_FPSW()]
 
         # Sub register
-        self.sub_registers = {
+        self.register_map = {
             'EAX': ['AL', 'AH', 'AX'],
             'EBX': ['BL', 'BH', 'BX'],
             'ECX': ['CL', 'CH', 'CX'],
@@ -115,11 +114,7 @@ class X86(ISA):
             'EDI': ['DI', 'DIL'],
             'EBP': ['BP', 'BPL'],
             'ESP': ['SP', 'SPL'],
-            'EIP': ['IP']
-        }
-
-        # Replace the register with r that can be recognized by Unicorn
-        self.reg_maps = {
+            'EIP': ['IP'],
             'FP0': ['ST(0)', 'ST0', 'MM0', 'ST'],
             'FP1': ['ST(1)', 'ST1', 'MM1'],
             'FP2': ['ST(2)', 'ST2', 'MM2'],
@@ -130,13 +125,22 @@ class X86(ISA):
             'FP7': ['ST(7)', 'ST7', 'MM7']
         }
 
+        self.register_alias = {}
+        for reg_name in self.register_map:
+            self.register_alias[reg_name] = reg_name
+            for aliased_reg_name in self.register_map[reg_name]:
+                self.register_alias[aliased_reg_name] = reg_name
+
         self.uc_arch = (UC_ARCH_X86, UC_MODE_32)
         self.ks_arch = (KS_ARCH_X86, KS_MODE_32)
         self.cs_arch = (CS_ARCH_X86, CS_MODE_32)
-        self.code_mem = 2 * 1024 * 1024
+        self.code_mem = 4096
         self.code_addr = 0x6d1c000
 
+        self.addr_space = 32
+
         self.cond_reg = X86_REG_EFLAGS()
+        self.reg_module = x86_registers
 
     def name2reg(self, name):
         name = name.upper()
@@ -156,12 +160,8 @@ class X86(ISA):
             reg.bits, reg.structure = bits, structure
             return reg
 
-        for full_reg_name, sub_regs_name in self.sub_registers.iteritems():
+        for full_reg_name, sub_regs_name in self.register_map.iteritems():
             if name in sub_regs_name:
                 return eval('X86_REG_{}()'.format(full_reg_name))
-
-        for reg_name, to_replace_reg_name in self.reg_maps.iteritems():
-            if name in to_replace_reg_name:
-                return eval('X86_REG_{}()'.format(reg_name))
 
         return eval('X86_REG_{}()'.format(name))

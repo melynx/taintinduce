@@ -5,6 +5,7 @@ from keystone import *
 
 from isa import ISA
 from arm64_registers import *
+import arm64_registers
 
 # Arm64 architecture
 class ARM64(ISA):
@@ -442,10 +443,15 @@ class ARM64(ISA):
         self.uc_arch = (UC_ARCH_ARM64, UC_MODE_ARM)
         self.ks_arch = (KS_ARCH_ARM64, KS_MODE_LITTLE_ENDIAN)
         self.cs_arch = (CS_ARCH_ARM64, CS_MODE_ARM)
-        self.code_mem = 2 * 1024 * 1024
+        #self.code_mem = 2 * 1024 * 1024
+        self.code_mem = 4096
         self.code_addr = 0x6d1c00000000000
 
+        self.addr_space = 64
+
         self.cond_reg = NZCV
+
+        self.reg_module = arm64_registers
 
     def name2reg(self, name):
         name = name.upper()

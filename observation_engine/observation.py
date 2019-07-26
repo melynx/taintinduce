@@ -1,6 +1,6 @@
 
 from observation_engine.strategy import *
-from unicorn_cpu.unicorn_cpu_new import *
+from unicorn_cpu.unicorn_cpu import *
 
 from taintinduce_common import *
 
@@ -9,40 +9,27 @@ from isa.amd64 import *
 from isa.arm64 import *
 
 import pdb
+from tqdm import tqdm
 
 class ObservationEngine(object):
     def __init__(self, bytestring, archstring, state_format):
-        # ZL: I really really hate to do this but the whole memory subsystem in UnicornCPU is just stupid
-        # The whole thing is just spaghetti code with global states set everywhere.
-        # Currently we'll have to instantiate the ObservationEngine with the bytestring, archstring and format.
-        # Then UnicornCPU will perform the memory subsystem initialization using mem_access_num().
-        # mem_access_num() is a MONSTER!!! Don't look at it, you'll cry and feel that life has no meaning.
+        self.arch = globals()[archstring]()
+        self.cpu = UnicornCPU(archstring)
+        bytecode = bytestring.decode('hex')
 
-        # A quick summary of what this nonsense thing does...
+        mem_regs = [x for x in state_format if 'MEM' in x.name]
+        self.cpu.set_memregs(mem_regs)
 
-        # Some global states that are used
-        # is_test is a global state that sets triggers a separate behavior for the memory hooks and execution.
-        # mem_try_num is a global counter that sets the number of memory accesses that has been made, as a kind of threshold guard
+        state_string = ' '.join(['({},{})'.format(x.name, x.bits) for x in state_format])
+        print('')
+        print('state_format: {}'.format(state_string))
+        print('')
 
-        # mem_access_num():
-        # 1. Sets is_test to True
-        # 2. Executes a bunch of instructions.
-        # 2a. In each execution, check mem_try_num == 0
-        # 2b. If True, creates a memory register using create_emu_reg(), how does that work, I have no idea
-
-        # mem_try_num, the global counter is modified in mem_clean_test()
-        # mem_clean_test() has a bunch of tests, accordingly decreases the counter and adds the memory access to a list
-        # At this point I gave up T.T, let's just use a global CPU.
-        # TODO: Rewrite the memory subsystem in UnicornCPU and remove this global cpu state.
         self.bytestring = bytestring
         self.archstring = archstring
         self.state_format = state_format
         self.DEBUG_LOG = False
 
-        arch = eval('{}()'.format(archstring))
-        self.cpu = UnicornCPU(arch)
-        bytecode = bytestring.decode('hex')
-        self.cpu.mem_access_num(bytecode)
 
     def observe_insn(self): #(, bytestring, archstring, state_format):
         """Produces the observations for a particular instruction.
@@ -70,7 +57,7 @@ class ObservationEngine(object):
 
         observations = []
         seed_ios = self._gen_seeds(bytestring, archstring, state_format)
-        for seed_io in seed_ios:
+        for seed_io in tqdm(seed_ios):
             observations.append(self._gen_observation(bytestring, archstring, state_format, seed_io))
         return observations
 
@@ -96,62 +83,24 @@ class ObservationEngine(object):
 
         # for reg in self.potential_use_regs:
         for reg in self.state_format:
-            for x in range(reg.bits):
+            #for x in tqdm(range(reg.bits)):
+            for x in (range(reg.bits)):
+                cpu.set_cpu_state(seed_in)
+                pos_val = (1<<x)
+                mutate_val = seed_in[reg] ^ pos_val
+                cpu.write_reg(reg, mutate_val)
                 try:
-                    cpu.set_cpu_state(seed_in)
-                    pos_val = (1<<x)
-                    mutate_val = seed_in[reg] ^ pos_val
-                    cpu.write_reg(reg, mutate_val)
-                    # ZL: DEBUG stuff for the stupid CPU mem not writing bug
-                    aa = cpu.read_reg(reg)
-                    if type(reg) == X86_REG_FPSW:
-                        aa = cpu.read_reg(reg)
-                        if mutate_val != aa:
-                            print('aaaaaa')
-                            print(reg)
-                            print(mutate_val)
-                            print(aa)
-                            print('ERROR')
-
                     sb, sa = cpu.execute(bytecode)
-                    sbs = regs2bits(sb, state_format)
-                    sas = regs2bits(sa, state_format)
-                    if not sss.diff(sbs):
-                        print(state_format)
-                        print(pos_val)
-                        print(reg)
-
-                        print(aa)
-                        print(seed_in[reg])
-                        print(sb[reg])
-                        qwe=(regs2bits2(seed_in, state_format))
-                        asd=(regs2bits2(sb, state_format))
-                        print(extract_reg2bits(qwe, reg, state_format))
-                        print(extract_reg2bits(asd, reg, state_format))
-                        print(qwe.diff(asd))
-                        print(state_format[0])
-                        print(seed_in[reg] ^ sb[reg])
-                    assert(sss.diff(sbs))
-                    #print('{} : {}'.format(sb[X86_REG_FPSW()]))
-                    #if 'EFLAGS' in reg.name and cpu.read_reg(X86_REG_EFLAGS()) & 1 == 1:
-                    #    print('EFLAG origin: {:032b}'.format(seed_in[reg]))
-                    #    print('EFLAG mutate: {:032b}'.format(mutate_val))
-                    #    print('FP0   origin: {:080b}'.format(sb[X86_REG_FP0()]))
-                    #    print('FP0   mutate: {:080b}'.format(sa[X86_REG_FP0()]))
-                    #    print('FP3   origin: {:080b}'.format(seed_in[X86_REG_FP3()]))
-                    #    print('FP3   origin: {:080b}'.format(sb[X86_REG_FP3()]))
-                    #    print('FP3   mutate: {:080b}'.format(sa[X86_REG_FP3()]))
-
-                    #print(sbs)
-                    #print(sas)
-                    #if sbs.state_value == regs2bits(seed_in,state_format).state_value:
-                    #    print('ERROR - reg {}'.format(reg))
-                    #    print(seed_in[reg])
-                    #    print(mutate_val)
-                    #    raise
-                    state_list.append((sbs, sas))
                 except UcError as e:
                     continue
+                except OutOfRangeException as e:
+                    continue
+                sbs = regs2bits(sb, state_format)
+                sas = regs2bits(sa, state_format)
+                if not sss.diff(sbs):
+                    continue
+                assert(sss.diff(sbs))
+                state_list.append((sbs, sas))
         return Observation((sss, rss), state_list, bytestring, archstring, state_format)
 
     def _gen_seeds(self, bytestring, archstring, state_format, strategies=None):
@@ -172,7 +121,7 @@ class ObservationEngine(object):
         seed_states = []
 
         for strategy in strategies:
-            for seed_variation in strategy.generator(state_format):
+            for seed_variation in tqdm(strategy.generator(state_format)):
                 seed_io = self._gen_random_seed_io(bytestring, archstring, seed_variation) 
                 # check if its successful or not, if not debug print
                 if seed_io:
@@ -206,6 +155,10 @@ class ObservationEngine(object):
                 cpu.set_cpu_state(seed_in)
                 sb, sa = cpu.execute(bytecode)
                 break
+            except OutOfRangeException as e:
+                if x == num_tries-1:
+                    return None
+                continue
             except UcError as e:
                 if x == num_tries-1:
                     return None
@@ -237,6 +190,10 @@ class ObservationEngine(object):
                 sb, sa = cpu.execute(bytecode)
                 break
             except UcError as e:
+                if x == num_tries-1:
+                    return None
+                continue
+            except OutOfRangeException as e:
                 if x == num_tries-1:
                     return None
                 continue
