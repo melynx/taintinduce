@@ -401,37 +401,10 @@ class UnicornCPU(cpu.CPU):
 
 def main():
     cpu = UnicornCPU('X86')
-    #cpu.identify_memops('\x8b\x45\x08')
-    #cpu.identify_memops('\xa4')
-    #cpu.identify_memops('\x48\xa7')
-
-    #mem_registers = cpu.identify_memops('\x48\x8b\x03')
-    #cpu.randomize_regs()
-    #cpu.execute('\x48\x8b\x03')
-
-    #mem_registers = cpu.identify_memops('\x48\x89\x18')
-    #cpu.randomize_regs()
-    #cpu.execute('\x48\x89\x18')
-
-    #mem_registers = cpu.identify_memops('\x89\x18')
-    #cpu.randomize_regs()
-    #cpu.execute('\x89\x18')
-
-    #mem_registers = cpu.identify_memops('\x8b\x03')
-    #cpu.set_memregs(mem_registers)
-    #cpu.randomize_regs()
-    #cpu.write_reg(isa.x86_registers.X86_REG_EBX(), 2**64-1)
-    #cpu.write_reg(isa.x86_registers.X86_MEM_READ1(), 2**64-1)
-    #cpu.print_regs(list(cpu.get_cpu_state()))
-    #a,b = cpu.execute('\x8b\x03')
-    #cpu.print_regs(list(cpu.get_cpu_state()))
-
-    #mem_registers, is_jump = cpu.identify_memops_jump('\xc3')
-    #mem_registers, is_jump = cpu.identify_memops_jump('\x8b\x03')
-    mem_registers, is_jump = cpu.identify_memops_jump('\xf3\xab')
+    mem_registers, jump_reg = cpu.identify_memops_jump('\xf3\xab')
     cpu.set_memregs(mem_registers)
     print(mem_registers)
-    print(is_jump)
+    print(jump_reg)
 
 if __name__ == "__main__":
     main()
