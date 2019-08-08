@@ -3,9 +3,8 @@ from unicorn.x86_const import *
 from capstone import *
 from keystone import *
 
-from isa import ISA
-from x86_registers import *
-import x86_registers
+from .isa import ISA
+from .x86_registers import *
 
 # x86 architecture
 class X86(ISA):
@@ -140,7 +139,6 @@ class X86(ISA):
         self.addr_space = 32
 
         self.cond_reg = X86_REG_EFLAGS()
-        self.reg_module = x86_registers
 
     def name2reg(self, name):
         name = name.upper()

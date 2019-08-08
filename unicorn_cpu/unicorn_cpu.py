@@ -14,7 +14,7 @@ from isa.arm64 import *
 import isa.x86_registers
 import isa.arm64_registers
 
-import cpu
+from . import cpu
 
 import unicorn
 import capstone
@@ -252,10 +252,10 @@ class UnicornCPU(cpu.CPU):
                 mem_reg = None
                 if access == UC_MEM_WRITE:
                     wc += 1
-                    mem_reg = getattr(self.arch.reg_module, 'X86_MEM_WRITE{}'.format(wc))()
+                    mem_reg = self.arch.name2reg('MEM_WRITE{}'.format(wc))
                 elif access == UC_MEM_READ:
                     rc += 1
-                    mem_reg = getattr(self.arch.reg_module, 'X86_MEM_READ{}'.format(rc))()
+                    mem_reg = self.arch.name2reg('MEM_READ{}'.format(rc))
                 else:
                     raise Exception
 
@@ -401,10 +401,37 @@ class UnicornCPU(cpu.CPU):
 
 def main():
     cpu = UnicornCPU('X86')
-    mem_registers, jump_reg = cpu.identify_memops_jump('\xf3\xab')
+    #cpu.identify_memops('\x8b\x45\x08')
+    #cpu.identify_memops('\xa4')
+    #cpu.identify_memops('\x48\xa7')
+
+    #mem_registers = cpu.identify_memops('\x48\x8b\x03')
+    #cpu.randomize_regs()
+    #cpu.execute('\x48\x8b\x03')
+
+    #mem_registers = cpu.identify_memops('\x48\x89\x18')
+    #cpu.randomize_regs()
+    #cpu.execute('\x48\x89\x18')
+
+    #mem_registers = cpu.identify_memops('\x89\x18')
+    #cpu.randomize_regs()
+    #cpu.execute('\x89\x18')
+
+    #mem_registers = cpu.identify_memops('\x8b\x03')
+    #cpu.set_memregs(mem_registers)
+    #cpu.randomize_regs()
+    #cpu.write_reg(isa.x86_registers.X86_REG_EBX(), 2**64-1)
+    #cpu.write_reg(isa.x86_registers.X86_MEM_READ1(), 2**64-1)
+    #cpu.print_regs(list(cpu.get_cpu_state()))
+    #a,b = cpu.execute('\x8b\x03')
+    #cpu.print_regs(list(cpu.get_cpu_state()))
+
+    #mem_registers, is_jump = cpu.identify_memops_jump('\xc3')
+    #mem_registers, is_jump = cpu.identify_memops_jump('\x8b\x03')
+    mem_registers, is_jump = cpu.identify_memops_jump('\xf3\xab')
     cpu.set_memregs(mem_registers)
     print(mem_registers)
-    print(jump_reg)
+    print(is_jump)
 
 if __name__ == "__main__":
     main()

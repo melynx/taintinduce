@@ -3,9 +3,8 @@ from unicorn.arm64_const import *
 from capstone import *
 from keystone import *
 
-from isa import ISA
-from arm64_registers import *
-import arm64_registers
+from .isa import ISA
+from .arm64_registers import *
 
 # Arm64 architecture
 class ARM64(ISA):
@@ -450,8 +449,6 @@ class ARM64(ISA):
         self.addr_space = 64
 
         self.cond_reg = NZCV
-
-        self.reg_module = arm64_registers
 
     def name2reg(self, name):
         name = name.upper()

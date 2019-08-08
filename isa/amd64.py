@@ -4,9 +4,8 @@ from unicorn.arm64_const import *
 from capstone import *
 from keystone import *
 
-from isa import ISA
-from x86_registers import *
-import x86_registers
+from .isa import ISA
+from .x86_registers import *
 # x64 architecture
 class AMD64(ISA):
     def __init__(self):
@@ -214,7 +213,6 @@ class AMD64(ISA):
         self.addr_space = 64
 
         self.cond_reg = X86_REG_EFLAGS()
-        self.reg_module = x86_registers
 
     def name2reg(self, name):
         name = name.upper()

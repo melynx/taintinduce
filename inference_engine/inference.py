@@ -1,6 +1,6 @@
 
-from logic import Espresso
-from logic import EspressoException, NonOrthogonalException
+from .logic import Espresso
+from .logic import EspressoException, NonOrthogonalException
 from taintinduce_common import espresso2cond, extract_reg2bits, shift_espresso, Rule
 from isa.x86_registers import X86_REG_EFLAGS
 
@@ -15,13 +15,10 @@ class InferenceEngine(object):
     def __init__(self, espresso_path='./inference_engine/espresso'):
         self.espresso = Espresso(espresso_path)
 
-    def infer(self, bytestring, archstring, state_format, observations, insn_info):
+    def infer(self, observations, cond_reg):
         """Infers the dataflow of the instruction using the obesrvations.
 
         Args:
-            bytestring (String):
-            archstring (String):
-            state_format ([Register]): 
             observations ([Observation]): List of observations to infer on.
             insn_info (InsnInfo): Optional argument to provide additional information about the insn.
         Returns:
@@ -30,10 +27,13 @@ class InferenceEngine(object):
             None
         """
 
-        cond_reg = insn_info.arch.cond_reg
-
         obs_deps = []
         unique_conditions = defaultdict(set)
+
+        # zl: we have the state_format in observation, assert that all observations in obs_list have the same state_format
+        state_formats = [x.state_format for x in observations]
+        state_format = state_formats[0]
+        assert(not state_formats or state_formats.count(state_formats[0]) == len(state_formats))
 
         for observation in observations:
             # single_obs_dep contains the dependency for a single observation

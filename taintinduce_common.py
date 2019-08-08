@@ -1,6 +1,10 @@
 import operator
 import sys
 import itertools
+import json
+
+from isa.arm64_registers import *
+from isa.x86_registers import *
 
 # TODO: All these classes should be shared with engine.py
 def query_yes_no(question, default="yes"):
@@ -206,6 +210,22 @@ def espresso2cond(espresso_cond):
     """
     return Condition(('DNF', list(espresso_cond)))
 
+def serialize_list(baseobj_list):
+    return [serialize_obj(x) for x in baseobj_list]
+
+def deserialize_list(baseobj_list):
+    return [deserialize_obj(x) for x in baseobj_list]
+
+def serialize_obj(myobj):
+    return (myobj.__class__.__name__, repr(myobj))
+
+def deserialize_obj(serialized_str):
+    #print(serialized_str)
+    class_name, obj_str = serialized_str
+    class_obj = globals()[class_name]()
+    class_obj.deserialize(obj_str)
+    return class_obj
+
 class BaseObj(object):
     """Provides standard implementation fo repr strings and deserialize methods.
     """
@@ -228,7 +248,7 @@ class BaseObj(object):
             A string representing the object's writable attributes which can be evaluated.
         """
 
-        return str(self.__dict__)
+        return json.dumps(self.__dict__)
 
     def __eq__(self, other):
         return self.__repr__() == other.__repr__()
@@ -244,7 +264,7 @@ class BaseObj(object):
         """Takes the representation string and populates the object
         """
 
-        self.__dict__ = eval(repr_str)
+        self.__dict__ = json.loads(repr_str)
         return None
 
 class State(BaseObj):
@@ -332,6 +352,28 @@ class Observation(BaseObj):
             self.archstring = archstring
             self.state_format = state_format
 
+    def __repr__(self):
+        """A string which is used to represent the object.
+
+        Args:
+            None
+        Returns:
+            A string representing the object's writable attributes which can be evaluated.
+        """
+        repr_dict = {}
+        repr_dict['seed_io'] = serialize_list(self.seed_io)
+        repr_dict['mutated_ios'] = [serialize_list(x) for x in self.mutated_ios]
+        repr_dict['bytestring'] = self.bytestring
+        repr_dict['archstring'] = self.archstring
+        repr_dict['state_format'] = [serialize_obj(x) for x in self.state_format]
+        return json.dumps(repr_dict)
+
+    def deserialize(self, repr_str):
+        self.__dict__ = json.loads(repr_str)
+        self.seed_io = deserialize_list(self.seed_io)
+        self.mutated_ios = [deserialize_list(x) for x in self.mutated_ios]
+        self.state_format = [deserialize_obj(x) for x in self.state_format]
+
 # ZL: renamed the old Condition to RPNCondition, I now think it is a bit clunky to represent it in RPN, hard to read.
 class RPNCondition(BaseObj):
     OPS_CMP = set(['EQ', 'LT', 'LTE', 'GT', 'GTE'])
@@ -389,11 +431,11 @@ class Condition(BaseObj):
                   'LOGIC': '_logic_eval',
                   'CMP': '_cmp_eval'}
 
-    def __init__(self, conditions, repr_str=None):
+    def __init__(self, conditions=None, repr_str=None):
         if repr_str:
             self.deserialize(repr_str)
         else:
-            self.conditions = conditions
+            self.condition_ops = conditions
 
     def eval(self, state):
         """The eval() method takes in a State object and checks if the condition evaluates to True or False.
@@ -405,7 +447,7 @@ class Condition(BaseObj):
             None
         """
         result = True
-        for ops_name, ops_args in self.conditions:
+        for ops_name, ops_args in self.condition_ops:
             result &= getattr(self, self.OPS_FN_MAP[ops_name])(state, ops_args)
         return result
 
@@ -427,7 +469,7 @@ class Rule(BaseObj):
     Attributes:
         state_format (list of Register): a list of registers that defines the format of the state.
         conditions (list of Condition): a list of strings which represents the condition (reverse polish notation)
-        dataflows ({True:{int: set(int)}}, False:{int:set(int)}): a dictionary with key being the bit position being used and the set being the bit position
+        dataflows ({True:{int: set(int)}}, False:{int:set(int)}): a list of dictionaries with key being the bit position being used and the set being the bit position
             being defined. 
     """
 
@@ -438,6 +480,24 @@ class Rule(BaseObj):
             self.state_format = state_format
             self.conditions = conditions
             self.dataflows = dataflows
+
+    def __repr__(self):
+        repr_dict = {}
+        repr_dict['state_format'] = [serialize_obj(x) for x in self.state_format]
+        repr_dict['conditions'] = serialize_list(self.conditions)
+        repr_dict['dataflows'] = []
+        for tempdict in self.dataflows:
+            repr_dict['dataflows'].append({x:list(tempdict[x]) for x in tempdict})
+        return json.dumps(repr_dict)
+
+    def deserialize(self, repr_str):
+        self.__dict__ = json.loads(repr_str)
+        self.state_format = [deserialize_obj(x) for x in self.state_format]
+        self.conditions = deserialize_list(self.conditions)
+        temp = []
+        for gg in self.dataflows:
+            temp.append({int(x):set(gg[x]) for x in gg})
+        self.dataflows = temp
 
     def web_string(self):
         mystr_list = []
@@ -493,3 +553,25 @@ class TaintState(BaseObj):
 
         bitstring = '{{:<0{}b}}'.format(self.num_bits).format(self.taint_map)
         return bitstring
+
+class InsnInfo(BaseObj):
+    def __init__(self, archstring=None, bytestring=None, state_format=None, cond_reg=None, repr_str=None):
+        if repr_str:
+            self.deserialize(repr_str)
+        else:
+            self.archstring = archstring
+            self.bytestring = bytestring
+            self.state_format = state_format
+            self.cond_reg = cond_reg
+
+    def __repr__(self):
+        repr_dict = self.__dict__.copy()
+        repr_dict['state_format'] = serialize_list(self.state_format)
+        repr_dict['cond_reg'] = serialize_obj(self.cond_reg)
+        return json.dumps(repr_dict)
+
+
+    def deserialize(self, repr_str):
+        self.__dict__ = json.loads(repr_str)
+        self.state_format = deserialize_list(self.state_format)
+        self.cond_reg = deserialize_obj(self.cond_reg)

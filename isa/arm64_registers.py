@@ -1,4 +1,4 @@
-from isa import Register
+from .isa import Register
 from unicorn import *
 from unicorn.arm64_const import *
 from capstone import *

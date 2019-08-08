@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
 import capstone
-import x86_insn_info_ct
-import amd64_insn_info_ct
+from . import x86_insn_info_ct
+from . import amd64_insn_info_ct
 import isa
 import traceback
+
+from taintinduce_common import InsnInfo
 
 import pdb
 
@@ -25,7 +27,7 @@ class UnsupportedSizeException(Exception):
         return "[ERROR] size unsupport error!"
 
 
-class InsnInfo(object):
+class Disassembler(object):
     def __init__(self, arch_str, bytestring):
         """Initialize wrapper over Capstone CsInsn or Cs.
 
@@ -84,59 +86,60 @@ class InsnInfo(object):
         # MEMORY - Capstone
         # check memory operands and add Register objects for memory write &
         # reads
-        read = 1
-        if cs_insn_info.id in insn_info_ct.mem_override:
-            for access_type, size in insn_info_ct.mem_override[cs_insn_info.id]:
-                if access_type == 'r':
-                    name = 'MEM_READ{}'.format(read)
-                    read += 1
-                elif access_type == 'w':
-                    name = 'MEM_WRITE1'
-                else:
-                    pdb.set_trace()
-                bits = size*8
-                self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
-        else:
-            for operand in cs_insn_info.operands:
-                if operand.type == capstone.CS_OP_MEM and cs_insn_info.id not in insn_info_ct.remove_mem:
-                    name = ''
-                    if operand.access & capstone.CS_AC_READ:
-                        name = 'MEM_READ{}'.format(read)
-                        read += 1
-                        bits = self._get_mem_bits(operand, regs_write)
-                        self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
-                    if operand.access & capstone.CS_AC_WRITE:
-                        name = 'MEM_WRITE1'
-                        bits = self._get_mem_bits(operand, regs_read)
-                        self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
-                    if not name:
-                        print("Memory operand is neither READ nor WRITE")
-                        pdb.set_trace()
+        #read = 1
+        #if cs_insn_info.id in insn_info_ct.mem_override:
+        #    for access_type, size in insn_info_ct.mem_override[cs_insn_info.id]:
+        #        if access_type == 'r':
+        #            name = 'MEM_READ{}'.format(read)
+        #            read += 1
+        #        elif access_type == 'w':
+        #            name = 'MEM_WRITE1'
+        #        else:
+        #            pdb.set_trace()
+        #        bits = size*8
+        #        self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
+        #else:
+        #    for operand in cs_insn_info.operands:
+        #        if operand.type == capstone.CS_OP_MEM and cs_insn_info.id not in insn_info_ct.remove_mem:
+        #            name = ''
+        #            if operand.access & capstone.CS_AC_READ:
+        #                name = 'MEM_READ{}'.format(read)
+        #                read += 1
+        #                bits = self._get_mem_bits(operand, regs_write)
+        #                self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
+        #            if operand.access & capstone.CS_AC_WRITE:
+        #                name = 'MEM_WRITE1'
+        #                bits = self._get_mem_bits(operand, regs_read)
+        #                self.cs_reg_set.append(self.arch.create_full_reg(name, bits))
+        #            if not name:
+        #                print("Memory operand is neither READ nor WRITE")
+        #                pdb.set_trace()
 
-                read = 1
-                if cs_insn_info.id in insn_info_ct.implicit_regs:
-                    manual_info = insn_info_ct.implicit_regs[cs_insn_info.id]
+        #        read = 1
+        #        if cs_insn_info.id in insn_info_ct.implicit_regs:
+        #            manual_info = insn_info_ct.implicit_regs[cs_insn_info.id]
 
-                    for _, _, reg_name in manual_info:
-                        self.manual_reg_set.append(self.arch.create_full_reg(reg_name))
+        #            for _, _, reg_name in manual_info:
+        #                self.manual_reg_set.append(self.arch.create_full_reg(reg_name))
 
-                if cs_insn_info.id in insn_info_ct.implicit_mem:
-                    # XXX i think this should be a list but it seems like there's
-                    # only one type of memory access in x86_insn_info_ct.py
-                    (access, size) = insn_info_ct.implicit_mem[cs_insn_info.id]
-                    if 'w' in access:
-                        name = 'MEM_WRITE1'
-                    elif 'r' in access:
-                        name = 'MEM_READ{}'.format(read)
-                        read += 1
+        #        if cs_insn_info.id in insn_info_ct.implicit_mem:
+        #            # XXX i think this should be a list but it seems like there's
+        #            # only one type of memory access in x86_insn_info_ct.py
+        #            (access, size) = insn_info_ct.implicit_mem[cs_insn_info.id]
+        #            if 'w' in access:
+        #                name = 'MEM_WRITE1'
+        #            elif 'r' in access:
+        #                name = 'MEM_READ{}'.format(read)
+        #                read += 1
 
-                    bits, structure = self._set_mem_reg_structure(size)
-                    mem_reg = self.arch.create_full_reg(name, bits, structure)
-                    self.cs_reg_set.append(mem_reg)
+        #            bits, structure = self._set_mem_reg_structure(size)
+        #            mem_reg = self.arch.create_full_reg(name, bits, structure)
+        #            self.cs_reg_set.append(mem_reg)
 
-        print('cs reg set {}'.format(self.cs_reg_set))
-        print('manual reg set {}'.format(self.manual_reg_set))
-        self.reg_set = sorted(list(set(self.cs_reg_set + self.manual_reg_set)))
+        #print('cs reg set {}'.format(self.cs_reg_set))
+        #print('manual reg set {}'.format(self.manual_reg_set))
+        reg_set = sorted(list(set(self.cs_reg_set + self.manual_reg_set)))
+        self.insninfo = InsnInfo(arch_str, bytestring, reg_set, self.arch.cond_reg)
 
     def _get_mem_bits(self, operand, regs):
         # for ARM32 and ARM64 capstone does not have a size
