@@ -28,8 +28,15 @@ to contact us.
 
 ## Usage
 @TODO
-taintinduce.py provides the inference interface and is the CLI tool to generate the rule.
+
+taintinduce.py provides the inference interface and is the CLI tool to generate the rule.\
 Checkout the --help option on how to use the CLI tool.
+
+python -m taintinduce.taintinduce c3 X86\
+
+taintinduce_worker.py is the compute process that SquirrelFlowDB uses.\
+
+python -m taintinduce.taintinduce_worker localhost 1234\
 
 ##### Issue with virtual env (Ubuntu 16.04, Python 2.7.12)
 When installing `capstone` and `keystone-engine` with `pip` in a virtual
