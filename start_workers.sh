@@ -2,6 +2,6 @@
 
 for i in {10100..10150}
 do
-        ./taintinduce_worker.py 0.0.0.0 $i &
+        taintinduce/taintinduce_worker.py 0.0.0.0 $i &
 done
 
