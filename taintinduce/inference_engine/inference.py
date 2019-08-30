@@ -1,11 +1,12 @@
+from collections import defaultdict
+from itertools import zip_longest
 
 from .logic import Espresso
 from .logic import EspressoException, NonOrthogonalException
 from taintinduce.taintinduce_common import espresso2cond, extract_reg2bits, shift_espresso, Rule
 from taintinduce.isa.x86_registers import X86_REG_EFLAGS
 
-from collections import defaultdict
-from itertools import zip_longest
+from squirrel.acorn.acorn import TaintRule
 
 import pdb
 
@@ -29,6 +30,9 @@ class InferenceEngine(object):
 
         obs_deps = []
         unique_conditions = defaultdict(set)
+
+        if len(observations) < 1:
+            return Rule()
 
         # zl: we have the state_format in observation, assert that all observations in obs_list have the same state_format
         state_formats = [x.state_format for x in observations]
@@ -120,7 +124,10 @@ class InferenceEngine(object):
         # The assumption here is that there will always be 2 sets, empty and the actual 
         # condition list.
 
-        global_dataflows = unique_conditions.pop(tuple())
+        if tuple() not in unique_conditions:
+            global_dataflows = []
+        else:
+            global_dataflows = unique_conditions.pop(tuple())
         dataflows = []
         condition_array = []
         dataflows.append(defaultdict(set))

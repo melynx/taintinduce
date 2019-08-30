@@ -1,6 +1,7 @@
 import subprocess
 import pickle
 import os
+import pkg_resources
 
 command_template = \
 '''
@@ -19,7 +20,9 @@ class NonOrthogonalException(Exception):
     pass
 
 class Espresso(object):
-    def __init__(self, path='./espresso'):
+    def __init__(self, path=None):
+        path = pkg_resources.resource_filename('taintinduce.inference_engine',
+                'espresso')
         if 'ESPRESSO_PATH' in os.environ:
             path = os.environ['ESPRESSO_PATH']
         self.path = path
@@ -117,7 +120,6 @@ class Espresso(object):
         obs_string = '\n'.join(obs)
 
         command = command_template.format(in_size, out_size, pla_type, obs_string)
-        #print(command)
         espresso = subprocess.Popen([self.path, '-t'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = espresso.communicate(command.encode())
         if stderr:

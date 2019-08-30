@@ -6,14 +6,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
         name="taintinduce",
-        version="0.1.0",
+        version="0.1.2",
         author="Chua Zheng Leong",
         author_email="czl@iiyume.org",
         description="TaintInduce",
         long_description=long_description,
         url="https://github.com/melynx/taintinduce/",
         packages=setuptools.find_packages(),
-        package_data={},
+        package_data={'taintinduce.inference_engine': ['espresso']},
         install_requires=[
             'squirrel-framework',
             'tqdm',

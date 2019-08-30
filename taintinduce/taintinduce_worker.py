@@ -2,11 +2,16 @@
 
 from xmlrpc.server import SimpleXMLRPCServer
 import argparse
+import json
+
+from squirrel.squirrel_serializer.serializer import SquirrelEncoder
+from taintinduce.taintinduce import taintinduce_infer
 
 def gen_obs_rule(archstring, bytestring):
     print("Inferring ({}) - {}".format(archstring, bytestring))
     insninfo, obs_list, rule = taintinduce_infer(archstring, bytestring)
-    return (insninfo.serialize(), obs_list, rule.serialize())
+    obs_str_list = [json.dumps(x, cls=SquirrelEncoder) for x in obs_list]
+    return (insninfo.serialize(), obs_str_list, rule.serialize())
 
 #def gen_observation(archstring, bytestring):
 #    insn = taintinduce.gen_insninfo(archstring, bytestring)

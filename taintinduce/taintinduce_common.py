@@ -4,12 +4,36 @@ import itertools
 import json
 
 import squirrel.acorn.acorn as acorn
+import squirrel.squirrel_serializer.serializer as serializer
 
 from taintinduce.isa.arm64_registers import *
 from taintinduce.isa.x86_registers import *
 from squirrel.isa.registers import MemorySlot, get_register_arch
 
+import taintinduce.taintinduce_common
+import taintinduce.isa.arm64_registers as arm64_registers
+import taintinduce.isa.x86_registers as x86_registers
+
 import pdb
+
+class TaintInduceDecoder(serializer.SquirrelDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, dct):
+        if '_obj_name' not in dct:
+            return dct
+        obj_name = dct['_obj_name']
+        if hasattr(taintinduce.taintinduce_common, obj_name):
+            obj = getattr(taintinduce.taintinduce_common, obj_name)()
+            obj.__dict__ = dct['data']
+        elif hasattr(x86_registers, obj_name):
+            obj = getattr(x86_registers, obj_name)()
+            obj.__dict__ = dct['data']
+        else:
+            obj = super().object_hook(dct)
+        return obj
+
 
 # TODO: All these classes should be shared with engine.py
 def query_yes_no(question, default="yes"):
@@ -400,7 +424,7 @@ class Rule(acorn.Acorn):
             being defined. 
     """
 
-    def __init__(self, state_format=None, conditions=None, dataflows=None, repr_str=None):
+    def __init__(self, state_format=[], conditions=[], dataflows=[{}], repr_str=None):
         if repr_str:
             self.deserialize(repr_str)
         else:

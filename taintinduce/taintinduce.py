@@ -16,7 +16,6 @@ from squirrel.squirrel_serializer.serializer import SquirrelEncoder, SquirrelDec
 from taintinduce.taintinduce_common import *
 from taintinduce.unicorn_cpu.unicorn_cpu import *
 
-
 def gen_insninfo(archstring, bytestring, emu_verify=True):
     insninfo = insn_info.Disassembler(archstring, bytestring).insninfo
     if emu_verify:
@@ -71,7 +70,7 @@ def main():
     if args.skip_gen:
         assert(args.output_dir)
         with open(obs_path, 'r') as f:
-            obs_list = deserialize_list(json.load(f))
+            obs_list = json.load(f, cls=TaintInduceDecoder)
     else:
         obs_list = gen_obs(args.arch, insn.bytestring, insn.state_format)
         print('Writing observations to {}'.format(obs_path))

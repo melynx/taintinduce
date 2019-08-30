@@ -54,6 +54,33 @@ def filter_address(address, size, state):
         state[2] = set(range(state[0], state[1]))
     return True
 
+def is_increase(address, size, state):
+    addr_end = address + size
+    # [0] - start, [1] - size, [2] - merge
+    #print('{} -- {}'.format(state, (address,size)))
+
+    # first memory access
+    if all([x == None for x in state]):
+        state[0] = address
+        state[1] = size
+        state[2] = False
+        return True
+
+    if state[0] + state[1] == address:
+        # consective memory...
+        state[1] = state[1] + size      # update size
+        state[2] = True                 # we just merged
+    elif (state[0] <= address and addr_end <= state[0] + state[1]):
+        # access within the bounds of 2 previous accesses
+        # probably a cross page mem access
+        state[2] = False
+    else:
+        state[0] = address
+        state[1] = size
+        state[2] = False
+        return True
+    return False
+
 
 def long_to_bytes (val, bits, endianness='little'):
     """
@@ -108,7 +135,8 @@ class UnicornCPU(cpu.CPU):
         self.pages = set()
 
         # TODO: have to figure out how to remove this state... :(
-        self.rw_struct = [[0,0],[None, None, None], False]
+        #self.rw_struct = [[0,0],[None, None, None], False]
+        self.rw_struct = [[0,0],[None, None, False], False]
         self._mem_rw_hook = self.mu.hook_add(UC_HOOK_MEM_WRITE |
                                              UC_HOOK_MEM_READ, self._mem_hook, self.rw_struct)
         pass
@@ -166,15 +194,20 @@ class UnicornCPU(cpu.CPU):
             user_data[2] = True
             #print("Hook: OutOfRange!")
             return False
-        if not filter_address(address, size, user_data[1]):
-            #print('skip')
-            return True
+        #if not filter_address(address, size, user_data[1]):
+        #    #print('skip')
+        #    return True
         value = sign2unsign(value, size*8)
+        if is_increase(address, size, user_data[1]):
+            if access == UC_MEM_READ:
+                user_data[0][0] += 1
+            elif access == UC_MEM_WRITE:
+                user_data[0][1] += 1
         if access == UC_MEM_READ:
-            user_data[0][0] += 1
+            #user_data[0][0] += 1
             self._mem_read(address, size, value, user_data[0][0])
         elif access == UC_MEM_WRITE:
-            user_data[0][1] += 1
+            #user_data[0][1] += 1
             self._mem_write(address, size, value, user_data[0][1])
         else:
             raise Exception("Unhandled access type in mem_hook!")
@@ -184,6 +217,8 @@ class UnicornCPU(cpu.CPU):
     def _test_mem(self, uc, access, address, size, value, user_data):
         #print("addr:{}".format(hex(address)))
         #print('access:{}'.format(access))
+        #print('size:{}'.format(size))
+        #pdb.set_trace()
         mem_access, state = user_data
         value = sign2unsign(value, size*8)
         if (filter_address(address, size, state)):
@@ -235,11 +270,17 @@ class UnicornCPU(cpu.CPU):
             # process mem_access to obtain number of memory access
             # we'll try to consolidate the memory accesses
             # each memory access is represented as a range
+
+            # we'll check memory using filter_address instead of is_increase
+            # the two methods should agree...
+
+            # [0] - addr, [1] - size, [2] - value (not in use)
             temp_mem_addr = set()
             for addr in mem_access:
                 temp_mem_addr.add((addr, addr+mem_access[addr][1]))
 
             # ensure that none of the range overlap
+            # while doing that, merge consecutive filtered address...
             temp_mem_addr = list(temp_mem_addr)
             temp_mem_addr.sort(key=lambda x : x[0])
 
@@ -247,6 +288,22 @@ class UnicornCPU(cpu.CPU):
                 if temp_mem_addr[x_idx][1] > temp_mem_addr[x_idx+1][0]:
                     pdb.set_trace()
                     raise Exception
+                elif temp_mem_addr[x_idx][1] == temp_mem_addr[x_idx+1][0]:
+                    chunk1_addr     = temp_mem_addr[x_idx][0]
+                    chunk1_access   = mem_access[chunk1_addr][0]
+                    chunk1_size     = temp_mem_addr[x_idx][1] - chunk1_addr
+                    chunk2_addr     = temp_mem_addr[x_idx+1][0]
+                    chunk2_access   = mem_access[chunk2_addr][0]
+                    chunk2_size     = temp_mem_addr[x_idx+1][1] - chunk2_addr
+
+                    if chunk1_access != chunk2_access:
+                        break
+
+                    # consective, merge it
+                    mem_access[chunk1_addr] = (chunk1_access, chunk1_size +
+                            chunk2_size, None)
+                    assert(chunk2_addr in mem_access)
+                    mem_access.pop(chunk2_addr)
 
             # at this point, we can create the memory operands.
             wc = 0
